@@ -1,7 +1,7 @@
+// Check if API key is defined
 if (typeof GOOGLE_MAPS_API_KEY === "undefined" || !GOOGLE_MAPS_API_KEY) {
-  throw new Error(
-    "Google Maps API key missing. Copy config.js.example to config.js and fill in your key."
-  );
+  console.error("Google Maps API key missing");
+  document.getElementById("map").innerHTML = '<div style="text-align: center; padding: 20px;">Error: Google Maps API key is missing</div>';
 }
 
 const script = document.createElement("script");
