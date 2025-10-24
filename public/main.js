@@ -18,6 +18,12 @@ let drawingManager = null;
 let drawingMode = false;
 let drawnShape = null;
 
+// Variables for freehand drawing
+let poly = null;
+let path = null;
+let isDrawing = false;
+let drawingPath = [];
+
 window.initMap = function initMap() {
   const defaultPosition = { lat: 37.7749, lng: -122.4194 };
 
@@ -41,8 +47,14 @@ window.initMap = function initMap() {
       strokeWeight: 10,
       fillColor: "#000000",
       fillOpacity: 0.1,
-      editable: false,
+      editable: true,
       draggable: false
+    },
+    // Add options for the drawing polyline to make it visible during drawing
+    polylineOptions: {
+      strokeColor: "#000000",
+      strokeOpacity: 1.0,
+      strokeWeight: 5
     }
   });
   
@@ -220,13 +232,144 @@ function startDrawing() {
   instructionDiv.textContent = 'Draw a shape around the region(s) you would like to live in';
   document.body.appendChild(instructionDiv);
   
-  // Enable drawing mode
-  drawingManager.setMap(map);
-  drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+  // Disable the standard drawing manager
+  if (drawingManager) {
+    drawingManager.setMap(null);
+  }
+  
+  // Initialize the polygon for freehand drawing
+  poly = new google.maps.Polygon({
+    strokeColor: '#000000',
+    strokeOpacity: 1.0,
+    strokeWeight: 10,
+    fillColor: '#000000',
+    fillOpacity: 0.1,
+  });
+  
+  // Create an empty MVCArray to hold the coordinate path
+  path = new google.maps.MVCArray();
+  poly.setPath(path);
+  poly.setMap(map);
+  
+  // Set up the drawing listeners
+  setupDrawingListeners();
+  
+  // Set drawing mode flag
   drawingMode = true;
   
   // Disable map dragging while in drawing mode
   map.setOptions({ draggable: false });
+}
+
+// Set up listeners for freehand drawing
+function setupDrawingListeners() {
+  // Mouse down event - start drawing
+  google.maps.event.addListener(map, 'mousedown', function(e) {
+    if (!drawingMode) return;
+    
+    // Clear previous path
+    if (path) {
+      path.clear();
+    }
+    
+    isDrawing = true;
+    drawingPath = [];
+    
+    // Add the first point
+    const point = e.latLng;
+    path.push(point);
+    drawingPath.push(point);
+  });
+  
+  // Mouse move event - continue drawing
+  google.maps.event.addListener(map, 'mousemove', function(e) {
+    if (!isDrawing) return;
+    
+    // Add point to the path
+    const point = e.latLng;
+    path.push(point);
+    drawingPath.push(point);
+  });
+  
+  // Mouse up event - finish drawing
+  google.maps.event.addListener(map, 'mouseup', function(e) {
+    if (!isDrawing) return;
+    
+    isDrawing = false;
+    
+    // Close the polygon
+    if (drawingPath.length > 2) {
+      path.push(drawingPath[0]);
+      
+      // Create the final polygon
+      drawnShape = new google.maps.Polygon({
+        paths: drawingPath,
+        strokeColor: '#000000',
+        strokeOpacity: 1.0,
+        strokeWeight: 10,
+        fillColor: '#000000',
+        fillOpacity: 0.1,
+        editable: true,
+        map: map
+      });
+      
+      // Remove the drawing polygon
+      poly.setMap(null);
+    }
+  });
+  
+  // Touch events for mobile
+  google.maps.event.addListener(map, 'touchstart', function(e) {
+    if (!drawingMode) return;
+    
+    // Clear previous path
+    if (path) {
+      path.clear();
+    }
+    
+    isDrawing = true;
+    drawingPath = [];
+    
+    // Add the first point
+    const point = e.latLng;
+    path.push(point);
+    drawingPath.push(point);
+  });
+  
+  google.maps.event.addListener(map, 'touchmove', function(e) {
+    if (!isDrawing) return;
+    
+    // Add point to the path
+    const point = e.latLng;
+    path.push(point);
+    drawingPath.push(point);
+  });
+  
+  google.maps.event.addListener(map, 'touchend', function(e) {
+    if (!isDrawing) return;
+    
+    isDrawing = false;
+    
+    // Close the polygon
+    if (drawingPath.length > 2) {
+      path.push(drawingPath[0]);
+      
+      // Create the final polygon
+      drawnShape = new google.maps.Polygon({
+        paths: drawingPath,
+        strokeColor: '#000000',
+        strokeOpacity: 1.0,
+        strokeWeight: 10,
+        fillColor: '#000000',
+        fillOpacity: 0.1,
+        editable: true,
+        map: map
+      });
+      
+      // Remove the drawing polygon
+      poly.setMap(null);
+    }
+  });
 }
 
 // Function to cancel drawing
@@ -260,9 +403,19 @@ function applyDrawing() {
 // Function to exit drawing mode
 function exitDrawingMode() {
   // Disable drawing manager
-  drawingManager.setMap(null);
-  drawingManager.setDrawingMode(null);
+  if (drawingManager) {
+    drawingManager.setMap(null);
+    drawingManager.setDrawingMode(null);
+  }
+  
+  // Clean up drawing state
   drawingMode = false;
+  isDrawing = false;
+  
+  // Clean up the drawing polygon if it exists
+  if (poly) {
+    poly.setMap(null);
+  }
   
   // Re-enable map dragging
   map.setOptions({ draggable: true });
@@ -279,4 +432,12 @@ function exitDrawingMode() {
   if (instructionDiv) {
     instructionDiv.remove();
   }
+  
+  // Remove the event listeners
+  google.maps.event.clearListeners(map, 'mousedown');
+  google.maps.event.clearListeners(map, 'mousemove');
+  google.maps.event.clearListeners(map, 'mouseup');
+  google.maps.event.clearListeners(map, 'touchstart');
+  google.maps.event.clearListeners(map, 'touchmove');
+  google.maps.event.clearListeners(map, 'touchend');
 }
