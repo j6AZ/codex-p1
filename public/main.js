@@ -82,45 +82,62 @@ function createBoundary(place) {
   const removeBoundaryBtn = document.getElementById("remove-boundary");
   removeBoundaryBtn.style.display = "flex";
   
-  // Create the boundary based on the viewport or location
+  // Get the location and calculate an appropriate radius
+  let center, radius;
+  
   if (place.geometry.viewport) {
-    // If the place has a viewport (area), use that
+    // If the place has a viewport (area), use the center of the viewport
     const bounds = place.geometry.viewport;
     
-    // Create a polygon that follows the bounds
+    // Calculate the center of the bounds
     const ne = bounds.getNorthEast();
     const sw = bounds.getSouthWest();
-    const nw = new google.maps.LatLng(ne.lat(), sw.lng());
-    const se = new google.maps.LatLng(sw.lat(), ne.lng());
     
-    boundary = new google.maps.Polygon({
-      paths: [ne, se, sw, nw],
-      strokeColor: "#000000",
-      strokeOpacity: 1.0,
-      strokeWeight: 10,
-      fillColor: "#000000",
-      fillOpacity: 0.1,
-      map: map
-    });
+    // Get the center point
+    center = new google.maps.LatLng(
+      (ne.lat() + sw.lat()) / 2,
+      (ne.lng() + sw.lng()) / 2
+    );
+    
+    // Calculate radius based on the size of the viewport
+    // Use the Haversine formula to calculate distance between two points
+    const R = 6371000; // Earth's radius in meters
+    const lat1 = center.lat() * Math.PI / 180;
+    const lat2 = ne.lat() * Math.PI / 180;
+    const lon1 = center.lng() * Math.PI / 180;
+    const lon2 = ne.lng() * Math.PI / 180;
+    
+    const dLat = lat2 - lat1;
+    const dLon = lon2 - lon1;
+    
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1) * Math.cos(lat2) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    
+    // Calculate the distance from center to northeast corner
+    radius = R * c;
     
     // Fit the map to the bounds
     map.fitBounds(bounds);
   } else {
-    // If the place doesn't have a viewport, create a circle around the location
-    const location = place.geometry.location;
-    
-    // Create a circle with a radius of approximately 500 meters
-    boundary = new google.maps.Circle({
-      center: location,
-      radius: 500,
-      strokeColor: "#000000",
-      strokeOpacity: 1.0,
-      strokeWeight: 10,
-      fillColor: "#000000",
-      fillOpacity: 0.1,
-      map: map
-    });
+    // If the place doesn't have a viewport, use its location
+    center = place.geometry.location;
+    // Default radius for specific locations
+    radius = 500;
   }
+  
+  // Create a circle around the location
+  boundary = new google.maps.Circle({
+    center: center,
+    radius: radius,
+    strokeColor: "#000000",
+    strokeOpacity: 1.0,
+    strokeWeight: 10,
+    fillColor: "#000000",
+    fillOpacity: 0.1,
+    map: map
+  });
 }
 
 // Function to remove the boundary
