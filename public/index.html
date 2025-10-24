@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Google Maps Autocomplete Demo</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="pac-card" class="card">
+      <label for="pac-input" class="label">Search for a place</label>
+      <input
+        id="pac-input"
+        type="text"
+        placeholder="Start typing an address, city, or place"
+        autocomplete="off"
+      />
+    </div>
+    <div id="map"></div>
+
+    <script src="config.js"></script>
+    <script src="main.js" type="module"></script>
+  </body>
+</html>
