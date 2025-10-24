@@ -5,7 +5,7 @@ if (typeof GOOGLE_MAPS_API_KEY === "undefined" || !GOOGLE_MAPS_API_KEY) {
 }
 
 const script = document.createElement("script");
-script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initMap`;
+script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places,drawing&callback=initMap`;
 script.async = true;
 script.defer = true;
 document.head.appendChild(script);
@@ -14,6 +14,9 @@ let map;
 let marker;
 let autocomplete;
 let boundary = null; // Will store the boundary polygon
+let drawingManager = null;
+let drawingMode = false;
+let drawnShape = null;
 
 window.initMap = function initMap() {
   const defaultPosition = { lat: 37.7749, lng: -122.4194 };
@@ -28,10 +31,44 @@ window.initMap = function initMap() {
     position: defaultPosition,
   });
   
-  // Set up the Remove Boundary button
+  // Initialize the drawing manager (but don't activate it yet)
+  drawingManager = new google.maps.drawing.DrawingManager({
+    drawingMode: null,
+    drawingControl: false,
+    polygonOptions: {
+      strokeColor: "#000000",
+      strokeOpacity: 1.0,
+      strokeWeight: 10,
+      fillColor: "#000000",
+      fillOpacity: 0.1,
+      editable: false,
+      draggable: false
+    }
+  });
+  
+  // Set up button event listeners
   const removeBoundaryBtn = document.getElementById("remove-boundary");
+  const drawBoundaryBtn = document.getElementById("draw-boundary");
+  const cancelDrawingBtn = document.getElementById("cancel-drawing");
+  const applyDrawingBtn = document.getElementById("apply-drawing");
+  const drawingControls = document.getElementById("drawing-controls");
+  
   removeBoundaryBtn.addEventListener("click", removeBoundary);
-  removeBoundaryBtn.style.display = "none"; // Hide button initially
+  drawBoundaryBtn.addEventListener("click", startDrawing);
+  cancelDrawingBtn.addEventListener("click", cancelDrawing);
+  applyDrawingBtn.addEventListener("click", applyDrawing);
+  
+  // Initial button states
+  removeBoundaryBtn.style.display = "none";
+  drawBoundaryBtn.style.display = "block";
+  drawingControls.style.display = "none";
+  
+  // Listen for polygon complete event
+  google.maps.event.addListener(drawingManager, 'polygoncomplete', function(polygon) {
+    drawnShape = polygon;
+    // Disable drawing mode once a shape is drawn
+    drawingManager.setDrawingMode(null);
+  });
 
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
@@ -147,7 +184,99 @@ function removeBoundary() {
     boundary = null;
   }
   
-  // Hide the remove boundary button
+  // Update button visibility
   const removeBoundaryBtn = document.getElementById("remove-boundary");
+  const drawBoundaryBtn = document.getElementById("draw-boundary");
+  
   removeBoundaryBtn.style.display = "none";
+  drawBoundaryBtn.style.display = "block";
+}
+
+// Function to start drawing mode
+function startDrawing() {
+  // Hide draw button, show drawing controls
+  const drawBoundaryBtn = document.getElementById("draw-boundary");
+  const drawingControls = document.getElementById("drawing-controls");
+  
+  drawBoundaryBtn.style.display = "none";
+  drawingControls.style.display = "flex";
+  
+  // Clear any existing boundaries
+  if (boundary) {
+    boundary.setMap(null);
+    boundary = null;
+  }
+  
+  // Clear any previously drawn shape
+  if (drawnShape) {
+    drawnShape.setMap(null);
+    drawnShape = null;
+  }
+  
+  // Add instruction banner
+  const instructionDiv = document.createElement('div');
+  instructionDiv.className = 'drawing-instruction';
+  instructionDiv.id = 'drawing-instruction';
+  instructionDiv.textContent = 'Draw a shape around the region(s) you would like to live in';
+  document.body.appendChild(instructionDiv);
+  
+  // Enable drawing mode
+  drawingManager.setMap(map);
+  drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+  drawingMode = true;
+  
+  // Disable map dragging while in drawing mode
+  map.setOptions({ draggable: false });
+}
+
+// Function to cancel drawing
+function cancelDrawing() {
+  // Remove any drawn shape
+  if (drawnShape) {
+    drawnShape.setMap(null);
+    drawnShape = null;
+  }
+  
+  // Exit drawing mode
+  exitDrawingMode();
+}
+
+// Function to apply the drawn boundary
+function applyDrawing() {
+  if (drawnShape) {
+    // Set the drawn shape as the boundary
+    boundary = drawnShape;
+    drawnShape = null;
+  }
+  
+  // Exit drawing mode
+  exitDrawingMode();
+  
+  // Show remove boundary button
+  const removeBoundaryBtn = document.getElementById("remove-boundary");
+  removeBoundaryBtn.style.display = "block";
+}
+
+// Function to exit drawing mode
+function exitDrawingMode() {
+  // Disable drawing manager
+  drawingManager.setMap(null);
+  drawingManager.setDrawingMode(null);
+  drawingMode = false;
+  
+  // Re-enable map dragging
+  map.setOptions({ draggable: true });
+  
+  // Update button visibility
+  const drawBoundaryBtn = document.getElementById("draw-boundary");
+  const drawingControls = document.getElementById("drawing-controls");
+  
+  drawBoundaryBtn.style.display = "block";
+  drawingControls.style.display = "none";
+  
+  // Remove instruction banner
+  const instructionDiv = document.getElementById('drawing-instruction');
+  if (instructionDiv) {
+    instructionDiv.remove();
+  }
 }

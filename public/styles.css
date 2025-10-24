@@ -11,6 +11,29 @@ body {
   top: 10px;
   right: 66px; /* Moved 100px to the left from the original 16px */
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drawing-controls {
+  display: none;
+  flex-direction: row;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.drawing-instruction {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 10px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 500;
+  z-index: 9;
 }
 
 .map-button {
