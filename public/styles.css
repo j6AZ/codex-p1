@@ -6,6 +6,41 @@ body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+.button-container {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+}
+
+.map-button {
+  background-color: white;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  color: #1a73e8;
+  cursor: pointer;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.map-button:hover {
+  background-color: #f8f9fa;
+}
+
+.map-button.active {
+  background-color: #e8f0fe;
+}
+
+.map-button .close-icon {
+  margin-left: 8px;
+  font-weight: bold;
+}
+
 #map {
   height: 100%;
 }
