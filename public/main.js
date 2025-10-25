@@ -267,8 +267,23 @@ function setupDrawingListeners() {
   google.maps.event.addListener(map, 'mousedown', function(e) {
     if (!drawingMode) return;
     
-    // Clear previous path
-    if (path) {
+    // Clear previous path and set up a new drawing polygon if needed
+    if (!poly || !poly.getMap()) {
+      // Create a new polygon for drawing
+      poly = new google.maps.Polygon({
+        strokeColor: '#000000',
+        strokeOpacity: 1.0,
+        strokeWeight: 10,
+        fillColor: '#000000',
+        fillOpacity: 0.1,
+        map: map
+      });
+      
+      // Create a new path
+      path = new google.maps.MVCArray();
+      poly.setPath(path);
+    } else {
+      // Just clear the existing path
       path.clear();
     }
     
@@ -315,6 +330,19 @@ function setupDrawingListeners() {
       
       // Remove the drawing polygon
       poly.setMap(null);
+      
+      // Create a new polygon for any additional drawing
+      poly = new google.maps.Polygon({
+        strokeColor: '#000000',
+        strokeOpacity: 1.0,
+        strokeWeight: 10,
+        fillColor: '#000000',
+        fillOpacity: 0.1,
+      });
+      
+      // Create a new empty path
+      path = new google.maps.MVCArray();
+      poly.setPath(path);
     }
   });
   
@@ -322,8 +350,23 @@ function setupDrawingListeners() {
   google.maps.event.addListener(map, 'touchstart', function(e) {
     if (!drawingMode) return;
     
-    // Clear previous path
-    if (path) {
+    // Clear previous path and set up a new drawing polygon if needed
+    if (!poly || !poly.getMap()) {
+      // Create a new polygon for drawing
+      poly = new google.maps.Polygon({
+        strokeColor: '#000000',
+        strokeOpacity: 1.0,
+        strokeWeight: 10,
+        fillColor: '#000000',
+        fillOpacity: 0.1,
+        map: map
+      });
+      
+      // Create a new path
+      path = new google.maps.MVCArray();
+      poly.setPath(path);
+    } else {
+      // Just clear the existing path
       path.clear();
     }
     
@@ -368,6 +411,19 @@ function setupDrawingListeners() {
       
       // Remove the drawing polygon
       poly.setMap(null);
+      
+      // Create a new polygon for any additional drawing
+      poly = new google.maps.Polygon({
+        strokeColor: '#000000',
+        strokeOpacity: 1.0,
+        strokeWeight: 10,
+        fillColor: '#000000',
+        fillOpacity: 0.1,
+      });
+      
+      // Create a new empty path
+      path = new google.maps.MVCArray();
+      poly.setPath(path);
     }
   });
 }
@@ -389,6 +445,11 @@ function applyDrawing() {
   if (drawnShape) {
     // Set the drawn shape as the boundary
     boundary = drawnShape;
+    
+    // Keep the drawn shape visible on the map
+    boundary.setMap(map);
+    
+    // Clear the reference to drawnShape since we're now using it as boundary
     drawnShape = null;
   }
   
