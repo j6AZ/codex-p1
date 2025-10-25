@@ -14,7 +14,7 @@ body.drawing-mode {
 
 .button-container {
   position: absolute;
-  top: 80px; /* Position below the search bar */
+  top: 100px; /* Position below the search bar */
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
@@ -126,7 +126,7 @@ body.drawing-mode {
   }
   
   .button-container {
-    top: 70px; /* Adjust for mobile to be closer to search bar */
+    top: 90px; /* Adjust for mobile to position below search bar */
     flex-wrap: wrap;
   }
   
