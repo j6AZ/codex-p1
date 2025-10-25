@@ -296,9 +296,9 @@ function setupDrawingListeners() {
     drawingPath.push(point);
   });
   
-  // Mouse move event - continue drawing
+  // Mouse move event - continue drawing ONLY if isDrawing is true
   google.maps.event.addListener(map, 'mousemove', function(e) {
-    if (!isDrawing) return;
+    if (!isDrawing || !poly || !poly.getMap()) return;
     
     // Add point to the path
     const point = e.latLng;
@@ -310,10 +310,12 @@ function setupDrawingListeners() {
   google.maps.event.addListener(map, 'mouseup', function(e) {
     if (!isDrawing) return;
     
+    // Set drawing flag to false to stop drawing
     isDrawing = false;
     
     // Close the polygon
     if (drawingPath.length > 2) {
+      // Add the first point again to close the shape
       path.push(drawingPath[0]);
       
       // Create the final polygon
@@ -330,19 +332,12 @@ function setupDrawingListeners() {
       
       // Remove the drawing polygon
       poly.setMap(null);
-      
-      // Create a new polygon for any additional drawing
-      poly = new google.maps.Polygon({
-        strokeColor: '#000000',
-        strokeOpacity: 1.0,
-        strokeWeight: 10,
-        fillColor: '#000000',
-        fillOpacity: 0.1,
-      });
-      
-      // Create a new empty path
-      path = new google.maps.MVCArray();
-      poly.setPath(path);
+      poly = null;
+    } else {
+      // If not enough points, just clear the path
+      path.clear();
+      poly.setMap(null);
+      poly = null;
     }
   });
   
@@ -380,7 +375,7 @@ function setupDrawingListeners() {
   });
   
   google.maps.event.addListener(map, 'touchmove', function(e) {
-    if (!isDrawing) return;
+    if (!isDrawing || !poly || !poly.getMap()) return;
     
     // Add point to the path
     const point = e.latLng;
@@ -391,10 +386,12 @@ function setupDrawingListeners() {
   google.maps.event.addListener(map, 'touchend', function(e) {
     if (!isDrawing) return;
     
+    // Set drawing flag to false to stop drawing
     isDrawing = false;
     
     // Close the polygon
     if (drawingPath.length > 2) {
+      // Add the first point again to close the shape
       path.push(drawingPath[0]);
       
       // Create the final polygon
@@ -411,19 +408,12 @@ function setupDrawingListeners() {
       
       // Remove the drawing polygon
       poly.setMap(null);
-      
-      // Create a new polygon for any additional drawing
-      poly = new google.maps.Polygon({
-        strokeColor: '#000000',
-        strokeOpacity: 1.0,
-        strokeWeight: 10,
-        fillColor: '#000000',
-        fillOpacity: 0.1,
-      });
-      
-      // Create a new empty path
-      path = new google.maps.MVCArray();
-      poly.setPath(path);
+      poly = null;
+    } else {
+      // If not enough points, just clear the path
+      path.clear();
+      poly.setMap(null);
+      poly = null;
     }
   });
 }
