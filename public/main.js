@@ -262,6 +262,9 @@ function startDrawing() {
   // Disable map dragging while in drawing mode
   map.setOptions({ draggable: false });
   
+  // Add class to body to prevent scrolling on mobile
+  document.body.classList.add('drawing-mode');
+  
   // Update instruction text
   updateInstructionText('Draw a shape around the region(s) you would like to live in');
 }
@@ -356,6 +359,11 @@ function setupDrawingListeners() {
   google.maps.event.addListener(map, 'touchstart', function(e) {
     if (!drawingMode || hasDrawnShape) return; // Prevent drawing if already drawn
     
+    // Prevent default touch behavior to avoid scrolling
+    if (e.domEvent) {
+      e.domEvent.preventDefault();
+    }
+    
     // Clear previous path and set up a new drawing polygon if needed
     if (!poly || !poly.getMap()) {
       // Create a new polygon for drawing
@@ -387,6 +395,11 @@ function setupDrawingListeners() {
   
   google.maps.event.addListener(map, 'touchmove', function(e) {
     if (!isDrawing || !poly || !poly.getMap() || hasDrawnShape) return;
+    
+    // Prevent default touch behavior to avoid scrolling
+    if (e.domEvent) {
+      e.domEvent.preventDefault();
+    }
     
     // Add point to the path
     const point = e.latLng;
@@ -490,6 +503,9 @@ function exitDrawingMode() {
   
   // Re-enable map dragging
   map.setOptions({ draggable: true });
+  
+  // Remove drawing-mode class from body to re-enable scrolling
+  document.body.classList.remove('drawing-mode');
   
   // Update button visibility
   const drawBoundaryBtn = document.getElementById("draw-boundary");
