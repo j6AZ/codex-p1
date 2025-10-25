@@ -18,11 +18,10 @@ let drawingManager = null;
 let drawingMode = false;
 let drawnShape = null;
 
-// Variables for freehand drawing
-let poly = null;
-let path = null;
+// Variables for rectangle drawing
 let isDrawing = false;
-let drawingPath = [];
+let drawingRectangle = null;
+let startPoint = null;
 let hasDrawnShape = false; // Flag to track if user has drawn a shape in current session
 
 window.initMap = function initMap() {
@@ -31,6 +30,7 @@ window.initMap = function initMap() {
   map = new google.maps.Map(document.getElementById("map"), {
     center: defaultPosition,
     zoom: 12,
+    gestureHandling: 'greedy', // Allow one-finger dragging on mobile
   });
 
   marker = new google.maps.Marker({
@@ -67,13 +67,12 @@ window.initMap = function initMap() {
   const drawingControls = document.getElementById("drawing-controls");
   
   removeBoundaryBtn.addEventListener("click", removeBoundary);
-  drawBoundaryBtn.addEventListener("click", startDrawing);
-  cancelDrawingBtn.addEventListener("click", cancelDrawing);
-  applyDrawingBtn.addEventListener("click", applyDrawing);
   
-  // Initial button states
+  // Initial button states - hide all drawing buttons
   removeBoundaryBtn.style.display = "none";
-  drawBoundaryBtn.style.display = "block";
+  drawBoundaryBtn.style.display = "none";
+  cancelDrawingBtn.style.display = "none";
+  applyDrawingBtn.style.display = "none";
   drawingControls.style.display = "none";
   
   // Listen for polygon complete event
@@ -128,9 +127,13 @@ function createBoundary(place) {
   // Remove any existing boundary
   removeBoundary();
   
-  // Show the remove boundary button
+  // Show ONLY the remove boundary button
   const removeBoundaryBtn = document.getElementById("remove-boundary");
+  
   removeBoundaryBtn.style.display = "flex";
+  
+  // Show instruction banner
+  showBoundaryInstruction();
   
   // Get the location and calculate an appropriate radius
   let center, radius;
@@ -177,16 +180,29 @@ function createBoundary(place) {
     radius = 500;
   }
   
-  // Create a circle around the location
-  boundary = new google.maps.Circle({
-    center: center,
-    radius: radius,
+  // Calculate rectangle bounds from the center and radius
+  // Convert radius (in meters) to approximate lat/lng offset
+  const latOffset = radius / 111320; // 1 degree latitude ≈ 111,320 meters
+  const lngOffset = radius / (111320 * Math.cos(center.lat() * Math.PI / 180));
+  
+  const bounds = {
+    north: center.lat() + latOffset,
+    south: center.lat() - latOffset,
+    east: center.lng() + lngOffset,
+    west: center.lng() - lngOffset
+  };
+  
+  // Create an editable and draggable rectangle
+  boundary = new google.maps.Rectangle({
+    bounds: bounds,
     strokeColor: "#000000",
     strokeOpacity: 1.0,
     strokeWeight: 10,
     fillColor: "#000000",
     fillOpacity: 0.1,
-    map: map
+    map: map,
+    editable: true,   // Allow user to resize
+    draggable: true   // Allow user to move
   });
 }
 
@@ -197,21 +213,24 @@ function removeBoundary() {
     boundary = null;
   }
   
-  // Update button visibility
+  // Hide remove boundary button
   const removeBoundaryBtn = document.getElementById("remove-boundary");
-  const drawBoundaryBtn = document.getElementById("draw-boundary");
   
   removeBoundaryBtn.style.display = "none";
-  drawBoundaryBtn.style.display = "block";
+  
+  // Hide instruction banner
+  hideBoundaryInstruction();
 }
 
 // Function to start drawing mode
 function startDrawing() {
-  // Hide draw button, show drawing controls
+  // Hide draw button and remove boundary button, show ONLY drawing controls
   const drawBoundaryBtn = document.getElementById("draw-boundary");
+  const removeBoundaryBtn = document.getElementById("remove-boundary");
   const drawingControls = document.getElementById("drawing-controls");
   
   drawBoundaryBtn.style.display = "none";
+  removeBoundaryBtn.style.display = "none";
   drawingControls.style.display = "flex";
   
   // Clear any existing boundaries
@@ -230,7 +249,7 @@ function startDrawing() {
   const instructionDiv = document.createElement('div');
   instructionDiv.className = 'drawing-instruction';
   instructionDiv.id = 'drawing-instruction';
-  instructionDiv.textContent = 'Draw a shape around the region(s) you would like to live in';
+  instructionDiv.textContent = 'Drag to draw a box around the region you would like to live in';
   document.body.appendChild(instructionDiv);
   
   // Disable the standard drawing manager
@@ -238,213 +257,117 @@ function startDrawing() {
     drawingManager.setMap(null);
   }
   
-  // Initialize the polygon for freehand drawing
-  poly = new google.maps.Polygon({
-    strokeColor: '#000000',
-    strokeOpacity: 1.0,
-    strokeWeight: 10,
-    fillColor: '#000000',
-    fillOpacity: 0.1,
-  });
-  
-  // Create an empty MVCArray to hold the coordinate path
-  path = new google.maps.MVCArray();
-  poly.setPath(path);
-  poly.setMap(map);
-  
-  // Set up the drawing listeners
-  setupDrawingListeners();
+  // Set up the rectangle drawing listeners
+  setupRectangleDrawing();
   
   // Set drawing mode flag
   drawingMode = true;
   hasDrawnShape = false; // Reset the flag when starting a new drawing session
   
-  // Disable map dragging while in drawing mode
-  map.setOptions({ draggable: false });
+  // LOCK map movement but keep it interactive for drawing
+  map.setOptions({
+    draggable: false,
+    zoomControl: false,
+    scrollwheel: false,
+    disableDoubleClickZoom: true,
+    gestureHandling: 'greedy', // Keep greedy to allow touch events for drawing
+    disableDefaultUI: true
+  });
   
-  // Add class to body to prevent scrolling on mobile
+  // Add class to body to prevent scrolling and lock viewport
   document.body.classList.add('drawing-mode');
-  
-  // Update instruction text
-  updateInstructionText('Draw a shape around the region(s) you would like to live in');
 }
 
-// Set up listeners for freehand drawing
-function setupDrawingListeners() {
-  // Mouse down event - start drawing
-  google.maps.event.addListener(map, 'mousedown', function(e) {
-    if (!drawingMode || hasDrawnShape) return; // Prevent drawing if already drawn
-    
-    // Clear previous path and set up a new drawing polygon if needed
-    if (!poly || !poly.getMap()) {
-      // Create a new polygon for drawing
-      poly = new google.maps.Polygon({
-        strokeColor: '#000000',
-        strokeOpacity: 1.0,
-        strokeWeight: 10,
-        fillColor: '#000000',
-        fillOpacity: 0.1,
-        map: map
-      });
-      
-      // Create a new path
-      path = new google.maps.MVCArray();
-      poly.setPath(path);
-    } else {
-      // Just clear the existing path
-      path.clear();
-    }
+// Set up listeners for rectangle drawing (crop-style)
+function setupRectangleDrawing() {
+  // Mouse/Touch down - start drawing rectangle
+  const startDrawingRect = function(latLng) {
+    if (!drawingMode || hasDrawnShape) return;
     
     isDrawing = true;
-    drawingPath = [];
+    startPoint = latLng;
     
-    // Add the first point
-    const point = e.latLng;
-    path.push(point);
-    drawingPath.push(point);
-  });
+    // Create a rectangle with editable and draggable properties
+    drawingRectangle = new google.maps.Rectangle({
+      bounds: {
+        north: latLng.lat(),
+        south: latLng.lat(),
+        east: latLng.lng(),
+        west: latLng.lng()
+      },
+      strokeColor: '#000000',
+      strokeOpacity: 1.0,
+      strokeWeight: 10,
+      fillColor: '#000000',
+      fillOpacity: 0.1,
+      map: map,
+      editable: true,  // Make it editable immediately
+      draggable: true  // Make it draggable
+    });
+  };
   
-  // Mouse move event - continue drawing ONLY if isDrawing is true
-  google.maps.event.addListener(map, 'mousemove', function(e) {
-    if (!isDrawing || !poly || !poly.getMap() || hasDrawnShape) return;
+  // Mouse/Touch move - update rectangle
+  const updateDrawingRect = function(latLng) {
+    if (!isDrawing || !drawingRectangle) return;
     
-    // Add point to the path
-    const point = e.latLng;
-    path.push(point);
-    drawingPath.push(point);
-  });
+    // Calculate bounds
+    const bounds = {
+      north: Math.max(startPoint.lat(), latLng.lat()),
+      south: Math.min(startPoint.lat(), latLng.lat()),
+      east: Math.max(startPoint.lng(), latLng.lng()),
+      west: Math.min(startPoint.lng(), latLng.lng())
+    };
+    
+    drawingRectangle.setBounds(bounds);
+  };
   
-  // Mouse up event - finish drawing
-  google.maps.event.addListener(map, 'mouseup', function(e) {
+  // Mouse/Touch up - finish drawing
+  const finishDrawingRect = function() {
     if (!isDrawing) return;
     
-    // Set drawing flag to false to stop drawing
     isDrawing = false;
     
-    // Close the polygon
-    if (drawingPath.length > 2) {
-      // Add the first point again to close the shape
-      path.push(drawingPath[0]);
-      
-      // Create the final polygon
-      drawnShape = new google.maps.Polygon({
-        paths: drawingPath,
-        strokeColor: '#000000',
-        strokeOpacity: 1.0,
-        strokeWeight: 10,
-        fillColor: '#000000',
-        fillOpacity: 0.1,
-        editable: true,
-        map: map
-      });
-      
-      // Remove the drawing polygon
-      poly.setMap(null);
-      poly = null;
-      
-      // Set flag to prevent further drawing in this session
+    if (drawingRectangle) {
+      // Set the rectangle as the drawn shape
+      drawnShape = drawingRectangle;
+      drawingRectangle = null;
+      startPoint = null;
       hasDrawnShape = true;
       
-      // Update instruction text
-      updateInstructionText('Click Apply to confirm or Cancel to redraw');
-    } else {
-      // If not enough points, just clear the path
-      path.clear();
-      poly.setMap(null);
-      poly = null;
+      updateInstructionText('Drag or resize the box, then click Apply to confirm or Cancel to redraw');
     }
+  };
+  
+  // Mouse events
+  google.maps.event.addListener(map, 'mousedown', function(e) {
+    startDrawingRect(e.latLng);
+  });
+  
+  google.maps.event.addListener(map, 'mousemove', function(e) {
+    updateDrawingRect(e.latLng);
+  });
+  
+  google.maps.event.addListener(map, 'mouseup', function(e) {
+    finishDrawingRect();
   });
   
   // Touch events for mobile
   google.maps.event.addListener(map, 'touchstart', function(e) {
-    if (!drawingMode || hasDrawnShape) return; // Prevent drawing if already drawn
-    
-    // Prevent default touch behavior to avoid scrolling
     if (e.domEvent) {
       e.domEvent.preventDefault();
     }
-    
-    // Clear previous path and set up a new drawing polygon if needed
-    if (!poly || !poly.getMap()) {
-      // Create a new polygon for drawing
-      poly = new google.maps.Polygon({
-        strokeColor: '#000000',
-        strokeOpacity: 1.0,
-        strokeWeight: 10,
-        fillColor: '#000000',
-        fillOpacity: 0.1,
-        map: map
-      });
-      
-      // Create a new path
-      path = new google.maps.MVCArray();
-      poly.setPath(path);
-    } else {
-      // Just clear the existing path
-      path.clear();
-    }
-    
-    isDrawing = true;
-    drawingPath = [];
-    
-    // Add the first point
-    const point = e.latLng;
-    path.push(point);
-    drawingPath.push(point);
+    startDrawingRect(e.latLng);
   });
   
   google.maps.event.addListener(map, 'touchmove', function(e) {
-    if (!isDrawing || !poly || !poly.getMap() || hasDrawnShape) return;
-    
-    // Prevent default touch behavior to avoid scrolling
     if (e.domEvent) {
       e.domEvent.preventDefault();
     }
-    
-    // Add point to the path
-    const point = e.latLng;
-    path.push(point);
-    drawingPath.push(point);
+    updateDrawingRect(e.latLng);
   });
   
   google.maps.event.addListener(map, 'touchend', function(e) {
-    if (!isDrawing) return;
-    
-    // Set drawing flag to false to stop drawing
-    isDrawing = false;
-    
-    // Close the polygon
-    if (drawingPath.length > 2) {
-      // Add the first point again to close the shape
-      path.push(drawingPath[0]);
-      
-      // Create the final polygon
-      drawnShape = new google.maps.Polygon({
-        paths: drawingPath,
-        strokeColor: '#000000',
-        strokeOpacity: 1.0,
-        strokeWeight: 10,
-        fillColor: '#000000',
-        fillOpacity: 0.1,
-        editable: true,
-        map: map
-      });
-      
-      // Remove the drawing polygon
-      poly.setMap(null);
-      poly = null;
-      
-      // Set flag to prevent further drawing in this session
-      hasDrawnShape = true;
-      
-      // Update instruction text
-      updateInstructionText('Click Apply to confirm or Cancel to redraw');
-    } else {
-      // If not enough points, just clear the path
-      path.clear();
-      poly.setMap(null);
-      poly = null;
-    }
+    finishDrawingRect();
   });
 }
 
@@ -461,6 +384,15 @@ function cancelDrawing() {
   
   // Exit drawing mode
   exitDrawingMode();
+  
+  // Update button visibility - show ONLY Draw button
+  const drawBoundaryBtn = document.getElementById("draw-boundary");
+  const removeBoundaryBtn = document.getElementById("remove-boundary");
+  const drawingControls = document.getElementById("drawing-controls");
+  
+  drawBoundaryBtn.style.display = "flex";
+  removeBoundaryBtn.style.display = "none";
+  drawingControls.style.display = "none";
 }
 
 // Function to apply the drawn boundary
@@ -469,19 +401,32 @@ function applyDrawing() {
     // Set the drawn shape as the boundary
     boundary = drawnShape;
     
-    // Keep the drawn shape visible on the map
-    boundary.setMap(map);
+    // Keep the boundary editable and draggable so user can adjust it
+    boundary.setOptions({
+      editable: true,
+      draggable: true
+    });
+    
+    // Explicitly ensure it's on the map
+    if (!boundary.getMap()) {
+      boundary.setMap(map);
+    }
     
     // Clear the reference to drawnShape since we're now using it as boundary
     drawnShape = null;
   }
   
-  // Exit drawing mode
+  // Exit drawing mode (but don't touch the boundary!)
   exitDrawingMode();
   
-  // Show remove boundary button
+  // Show ONLY remove boundary button
   const removeBoundaryBtn = document.getElementById("remove-boundary");
-  removeBoundaryBtn.style.display = "block";
+  const drawBoundaryBtn = document.getElementById("draw-boundary");
+  const drawingControls = document.getElementById("drawing-controls");
+  
+  removeBoundaryBtn.style.display = "flex";
+  drawBoundaryBtn.style.display = "none";
+  drawingControls.style.display = "none";
 }
 
 // Function to exit drawing mode
@@ -496,23 +441,25 @@ function exitDrawingMode() {
   drawingMode = false;
   isDrawing = false;
   
-  // Clean up the drawing polygon if it exists
-  if (poly) {
-    poly.setMap(null);
+  // Clean up the drawing rectangle if it exists
+  if (drawingRectangle) {
+    drawingRectangle.setMap(null);
+    drawingRectangle = null;
   }
   
-  // Re-enable map dragging
-  map.setOptions({ draggable: true });
+  startPoint = null;
+  
+  // Re-enable map dragging and interactions
+  map.setOptions({
+    draggable: true,
+    zoomControl: true,
+    scrollwheel: true,
+    disableDoubleClickZoom: false,
+    gestureHandling: 'greedy' // Re-enable one-finger dragging
+  });
   
   // Remove drawing-mode class from body to re-enable scrolling
   document.body.classList.remove('drawing-mode');
-  
-  // Update button visibility
-  const drawBoundaryBtn = document.getElementById("draw-boundary");
-  const drawingControls = document.getElementById("drawing-controls");
-  
-  drawBoundaryBtn.style.display = "block";
-  drawingControls.style.display = "none";
   
   // Remove instruction banner
   const instructionDiv = document.getElementById('drawing-instruction');
@@ -534,5 +481,43 @@ function updateInstructionText(text) {
   const instructionDiv = document.getElementById('drawing-instruction');
   if (instructionDiv) {
     instructionDiv.textContent = text;
+  }
+}
+
+// Function to show boundary instruction banner
+function showBoundaryInstruction() {
+  // Remove existing instruction if any
+  let instructionDiv = document.getElementById('boundary-instruction');
+  if (instructionDiv) {
+    instructionDiv.remove();
+  }
+  
+  // Create new instruction banner
+  instructionDiv = document.createElement('div');
+  instructionDiv.className = 'boundary-instruction';
+  instructionDiv.id = 'boundary-instruction';
+  instructionDiv.textContent = 'Resize the selected area to refine your search location';
+  document.body.appendChild(instructionDiv);
+  
+  // Trigger animation after a brief delay
+  setTimeout(() => {
+    instructionDiv.classList.add('show');
+  }, 100);
+  
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    hideBoundaryInstruction();
+  }, 5000);
+}
+
+// Function to hide boundary instruction banner
+function hideBoundaryInstruction() {
+  const instructionDiv = document.getElementById('boundary-instruction');
+  if (instructionDiv) {
+    instructionDiv.classList.remove('show');
+    // Remove from DOM after animation completes
+    setTimeout(() => {
+      instructionDiv.remove();
+    }, 500);
   }
 }

@@ -10,11 +10,14 @@ body.drawing-mode {
   overflow: hidden;
   position: fixed;
   width: 100%;
+  height: 100%;
+  touch-action: none; /* Prevent all touch gestures */
+  overscroll-behavior: none; /* Prevent overscroll/bounce */
 }
 
 .button-container {
   position: absolute;
-  top: 100px; /* Position below the search bar */
+  top: 152px; /* Position below the search bar */
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
@@ -23,6 +26,12 @@ body.drawing-mode {
   gap: 8px;
   justify-content: center;
   align-items: center;
+}
+
+/* Hide draw button and drawing controls */
+#draw-boundary,
+#drawing-controls {
+  display: none !important;
 }
 
 .drawing-controls {
@@ -37,12 +46,40 @@ body.drawing-mode {
   top: 0;
   left: 0;
   right: 0;
-  background-color: rgba(255, 255, 255, 0.9);
+  background-color: rgba(0, 0, 0, 0.7);
   padding: 10px;
   text-align: center;
   font-size: 16px;
+  color: white;
   font-weight: 500;
   z-index: 9;
+}
+
+.boundary-instruction {
+  position: fixed;
+  bottom: -100px; /* Start off-screen */
+  left: 0;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  padding: 20px;
+  text-align: center;
+  font-size: 16px;
+  color: white;
+  font-weight: 500;
+  z-index: 1000;
+  transition: bottom 0.5s ease-out;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.boundary-instruction.show {
+  bottom: 0; /* Slide up into view */
+}
+
+@media (max-width: 480px) {
+  .boundary-instruction {
+    font-size: 14px;
+    padding: 16px;
+  }
 }
 
 .map-button {
@@ -79,7 +116,7 @@ body.drawing-mode {
 
 .card {
   position: absolute;
-  top: 16px;
+  top: 52px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 5;
@@ -115,23 +152,23 @@ body.drawing-mode {
 
 @media (max-width: 480px) {
   .card {
-    top: 12px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    gap: 4px;
+    top: 52px; /* Match desktop positioning */
+    padding: 12px 16px; /* Match desktop padding */
+    border-radius: 12px; /* Match desktop border-radius */
+    gap: 6px; /* Match desktop gap */
   }
 
   #pac-input {
-    font-size: 0.95rem;
+    font-size: 1rem; /* Match desktop font-size */
   }
   
   .button-container {
-    top: 90px; /* Adjust for mobile to position below search bar */
+    top: 152px; /* Match desktop positioning */
     flex-wrap: wrap;
   }
   
   .map-button {
-    font-size: 13px;
-    padding: 10px 10px;
+    font-size: 14px; /* Match desktop font-size */
+    padding: 11px 11px; /* Match desktop padding */
   }
 }
