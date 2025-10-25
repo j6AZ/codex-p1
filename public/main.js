@@ -303,7 +303,7 @@ function setupDrawingListeners() {
   
   // Mouse move event - continue drawing ONLY if isDrawing is true
   google.maps.event.addListener(map, 'mousemove', function(e) {
-    if (!isDrawing || !poly || !poly.getMap()) return;
+    if (!isDrawing || !poly || !poly.getMap() || hasDrawnShape) return;
     
     // Add point to the path
     const point = e.latLng;
@@ -386,7 +386,7 @@ function setupDrawingListeners() {
   });
   
   google.maps.event.addListener(map, 'touchmove', function(e) {
-    if (!isDrawing || !poly || !poly.getMap()) return;
+    if (!isDrawing || !poly || !poly.getMap() || hasDrawnShape) return;
     
     // Add point to the path
     const point = e.latLng;
