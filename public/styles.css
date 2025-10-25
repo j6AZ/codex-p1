@@ -14,12 +14,15 @@ body.drawing-mode {
 
 .button-container {
   position: absolute;
-  top: 10px;
-  right: 66px; /* Moved 100px to the left from the original 16px */
+  top: 80px; /* Position below the search bar */
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 10;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 8px;
+  justify-content: center;
+  align-items: center;
 }
 
 .drawing-controls {
@@ -120,5 +123,15 @@ body.drawing-mode {
 
   #pac-input {
     font-size: 0.95rem;
+  }
+  
+  .button-container {
+    top: 70px; /* Adjust for mobile to be closer to search bar */
+    flex-wrap: wrap;
+  }
+  
+  .map-button {
+    font-size: 13px;
+    padding: 10px 10px;
   }
 }
