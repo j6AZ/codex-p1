@@ -23,6 +23,7 @@ let poly = null;
 let path = null;
 let isDrawing = false;
 let drawingPath = [];
+let hasDrawnShape = false; // Flag to track if user has drawn a shape in current session
 
 window.initMap = function initMap() {
   const defaultPosition = { lat: 37.7749, lng: -122.4194 };
@@ -256,16 +257,20 @@ function startDrawing() {
   
   // Set drawing mode flag
   drawingMode = true;
+  hasDrawnShape = false; // Reset the flag when starting a new drawing session
   
   // Disable map dragging while in drawing mode
   map.setOptions({ draggable: false });
+  
+  // Update instruction text
+  updateInstructionText('Draw a shape around the region(s) you would like to live in');
 }
 
 // Set up listeners for freehand drawing
 function setupDrawingListeners() {
   // Mouse down event - start drawing
   google.maps.event.addListener(map, 'mousedown', function(e) {
-    if (!drawingMode) return;
+    if (!drawingMode || hasDrawnShape) return; // Prevent drawing if already drawn
     
     // Clear previous path and set up a new drawing polygon if needed
     if (!poly || !poly.getMap()) {
@@ -333,6 +338,12 @@ function setupDrawingListeners() {
       // Remove the drawing polygon
       poly.setMap(null);
       poly = null;
+      
+      // Set flag to prevent further drawing in this session
+      hasDrawnShape = true;
+      
+      // Update instruction text
+      updateInstructionText('Click Apply to confirm or Cancel to redraw');
     } else {
       // If not enough points, just clear the path
       path.clear();
@@ -343,7 +354,7 @@ function setupDrawingListeners() {
   
   // Touch events for mobile
   google.maps.event.addListener(map, 'touchstart', function(e) {
-    if (!drawingMode) return;
+    if (!drawingMode || hasDrawnShape) return; // Prevent drawing if already drawn
     
     // Clear previous path and set up a new drawing polygon if needed
     if (!poly || !poly.getMap()) {
@@ -409,6 +420,12 @@ function setupDrawingListeners() {
       // Remove the drawing polygon
       poly.setMap(null);
       poly = null;
+      
+      // Set flag to prevent further drawing in this session
+      hasDrawnShape = true;
+      
+      // Update instruction text
+      updateInstructionText('Click Apply to confirm or Cancel to redraw');
     } else {
       // If not enough points, just clear the path
       path.clear();
@@ -425,6 +442,9 @@ function cancelDrawing() {
     drawnShape.setMap(null);
     drawnShape = null;
   }
+  
+  // Reset the flag
+  hasDrawnShape = false;
   
   // Exit drawing mode
   exitDrawingMode();
@@ -491,4 +511,12 @@ function exitDrawingMode() {
   google.maps.event.clearListeners(map, 'touchstart');
   google.maps.event.clearListeners(map, 'touchmove');
   google.maps.event.clearListeners(map, 'touchend');
+}
+
+// Function to update instruction text
+function updateInstructionText(text) {
+  const instructionDiv = document.getElementById('drawing-instruction');
+  if (instructionDiv) {
+    instructionDiv.textContent = text;
+  }
 }
